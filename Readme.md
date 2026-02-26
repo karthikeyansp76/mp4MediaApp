@@ -271,7 +271,7 @@ css/
 
 # Time Spent
 
-Approximately: **X–Y hours**
+Approximately: **4hrs** 
 
 (Time includes architecture design, API implementation, validation logic, UI styling, responsive design, and testing.)
 
