@@ -1,0 +1,299 @@
+﻿@model List<mp4MediaApp.Models.VideoFileViewModel>
+
+@{
+    ViewData["Title"] = "MP4 Stream";
+}
+
+<div class="main-wrapper container py-4">
+
+    <!-- ========================= -->
+    <!-- TOGGLE BUTTON -->
+    <!-- ========================= -->
+    <div class="text-center mb-5">
+        <button id="toggleViewBtn"
+                type="button"
+                class="primary-pill-btn"
+                onclick="toggleView()">
+            UPLOAD VIDEOS
+        </button>
+    </div>
+
+    <!-- ========================= -->
+    <!-- UPLOAD SECTION -->
+    <!-- ========================= -->
+    <div id="uploadSection" class="upload-box" style="display:none;">
+
+        <h4 class="text-center mb-4">Upload MP4 Files</h4>
+
+        <form id="uploadForm" enctype="multipart/form-data">
+
+            <!-- Custom File Picker -->
+            <div class="custom-file-wrapper">
+
+                <label for="fileUpload" class="file-select-btn">
+                    SELECT MP4 FILES
+                </label>
+
+                <input id="fileUpload"
+                       type="file"
+                       name="files"
+                       multiple
+                       accept=".mp4"
+                       hidden />
+
+                <div id="fileNames" class="file-name-display">
+                    No files selected
+                </div>
+
+            </div>
+
+            <!-- Submit Button -->
+            <div class="text-center mt-4">
+                <button type="submit"
+                        id="submitUploadBtn"
+                        class="primary-pill-btn submit-pill-btn">
+                    UPLOAD
+                </button>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-wrapper mt-4" style="display:none;">
+                <div id="uploadProgressBar"
+                     class="progress-bar-custom">
+                    0%
+                </div>
+            </div>
+
+        </form>
+
+        <!-- Error Alert -->
+        <div id="uploadAlert"
+             class="custom-alert text-center mt-3">
+        </div>
+    </div>
+
+    <!-- ========================= -->
+    <!-- CATALOGUE SECTION -->
+    <!-- ========================= -->
+    <div id="catalogueSection" class="row g-4">
+
+        <!-- VIDEO PLAYER -->
+        <div class="col-lg-8 col-12">
+            <div class="video-wrapper">
+                <video id="videoPlayer"
+                       class="video-element"
+                       controls>
+                </video>
+            </div>
+        </div>
+
+        <!-- VIDEO LIST -->
+        <div class="col-lg-4 col-12">
+            <div class="video-list-wrapper">
+
+                <h5 class="list-header">AVAILABLE VIDEOS</h5>
+
+                <div class="video-list-container">
+
+                    @if (Model != null && Model.Any())
+                    {
+                        foreach (var file in Model)
+                        {
+                            <div class="video-card"
+                                 data-file="@file.FileName"
+                                 onclick="playVideo('@file.FileName')">
+
+                                <div>@file.FileName</div>
+                                <div class="video-size">
+                                    @(Math.Round((double)file.FileSize / (1024 * 1024), 2)) MB
+                                </div>
+
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p>No videos available.</p>
+                    }
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+
+    // ===============================
+    // Toggle Upload / Catalogue
+    // ===============================
+    function toggleView() {
+
+        const upload = document.getElementById("uploadSection");
+        const catalogue = document.getElementById("catalogueSection");
+        const btn = document.getElementById("toggleViewBtn");
+
+        const showingUpload = upload.style.display === "block";
+
+        if (!showingUpload) {
+            upload.style.display = "block";
+            catalogue.style.display = "none";
+            btn.innerText = "BACK TO CATALOGUE";
+        } else {
+            upload.style.display = "none";
+            catalogue.style.display = "flex";
+            btn.innerText = "UPLOAD VIDEOS";
+        }
+    }
+
+    // ===============================
+    // Play Video
+    // ===============================
+    function playVideo(fileName) {
+
+        const player = document.getElementById("videoPlayer");
+        const cards = document.querySelectorAll(".video-card");
+
+        cards.forEach(c => c.classList.remove("active"));
+
+        const selected = document.querySelector(`.video-card[data-file='${fileName}']`);
+        if (selected) selected.classList.add("active");
+
+        player.pause();
+        player.src = "/media/" + fileName;
+        player.load();
+        player.play();
+    }
+
+    // ===============================
+    // DOM Ready
+    // ===============================
+    document.addEventListener("DOMContentLoaded", function () {
+
+        // Auto-play first video
+        const cards = document.querySelectorAll(".video-card");
+        if (cards.length > 0) {
+            playVideo(cards[0].getAttribute("data-file"));
+        }
+
+        // Show selected file names
+        document.getElementById("fileUpload").addEventListener("change", function () {
+
+            const fileNamesDiv = document.getElementById("fileNames");
+
+            if (!this.files || this.files.length === 0) {
+                fileNamesDiv.innerText = "No files selected";
+                return;
+            }
+
+            const names = Array.from(this.files)
+                .map(f => f.name)
+                .join(", ");
+
+            fileNamesDiv.innerText = names;
+        });
+
+    });
+
+    // ===============================
+    // Upload with Validation + Progress
+    // ===============================
+    document.getElementById("uploadForm").addEventListener("submit", function (e) {
+
+        e.preventDefault();
+
+        const fileInput = document.getElementById("fileUpload");
+        const alertBox = document.getElementById("uploadAlert");
+        const progressWrapper = document.querySelector(".progress-wrapper");
+        const progressBar = document.getElementById("uploadProgressBar");
+        const submitBtn = document.getElementById("submitUploadBtn");
+
+        resetUI();
+
+        // ===== CLIENT VALIDATION =====
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            return showError("Please select at least one MP4 file.");
+        }
+
+        const maxSize = 200 * 1024 * 1024;
+
+        for (let file of fileInput.files) {
+
+            if (!file.name.toLowerCase().endsWith(".mp4")) {
+                return showError(`File '${file.name}' is not an MP4 file.`);
+            }
+
+            if (file.size === 0) {
+                return showError(`File '${file.name}' is empty.`);
+            }
+
+            if (file.size > maxSize) {
+                return showError(`File '${file.name}' exceeds the 200MB limit.`);
+            }
+        }
+
+        // ===== API CALL =====
+
+        const formData = new FormData();
+        Array.from(fileInput.files).forEach(f => formData.append("files", f));
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/upload", true);
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = "UPLOADING...";
+
+        xhr.upload.addEventListener("progress", function (e) {
+
+            if (e.lengthComputable) {
+
+                const percent = Math.round((e.loaded / e.total) * 100);
+
+                progressWrapper.style.display = "block";
+                progressBar.style.width = percent + "%";
+                progressBar.innerText = percent + "%";
+            }
+        });
+
+        xhr.onload = function () {
+
+            submitBtn.disabled = false;
+            submitBtn.innerText = "UPLOAD";
+
+            if (xhr.status === 200) {
+                location.reload();
+            } else {
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    showError(res.message || "Upload failed.");
+                } catch {
+                    showError("Upload failed.");
+                }
+            }
+        };
+
+        xhr.onerror = function () {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "UPLOAD";
+            showError("Network error occurred.");
+        };
+
+        xhr.send(formData);
+
+        function showError(message) {
+            alertBox.innerText = message;
+            alertBox.style.display = "block";
+        }
+
+        function resetUI() {
+            alertBox.style.display = "none";
+            progressWrapper.style.display = "none";
+            progressBar.style.width = "0%";
+            progressBar.innerText = "0%";
+        }
+
+    });
+
+</script>
