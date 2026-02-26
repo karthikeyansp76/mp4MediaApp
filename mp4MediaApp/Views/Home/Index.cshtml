@@ -178,21 +178,22 @@
         }
 
         // Show selected file names
-        document.getElementById("fileUpload").addEventListener("change", function () {
+          document.getElementById("fileUpload").addEventListener("change", function () {
 
-            const fileNamesDiv = document.getElementById("fileNames");
+        const fileNamesDiv = document.getElementById("fileNames");
+        const fileCount = this.files.length;
 
-            if (!this.files || this.files.length === 0) {
-                fileNamesDiv.innerText = "No files selected";
-                return;
-            }
+        if (fileCount === 0) {
+            fileNamesDiv.innerText = "No files selected";
+            return;
+        }
 
-            const names = Array.from(this.files)
-                .map(f => f.name)
-                .join(", ");
-
-            fileNamesDiv.innerText = names;
-        });
+        if (fileCount === 1) {
+            fileNamesDiv.innerText = this.files[0].name;
+        } else {
+            fileNamesDiv.innerText = fileCount + " files selected";
+        }
+    });
 
     });
 
